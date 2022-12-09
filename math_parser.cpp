@@ -182,8 +182,10 @@ int math_prior(std::string& expr)
 		}
 	}
 	double res = 0.0;
-	math_calculate(v, res);
-	std::cout << res << std::endl;
+	if(math_calculate(v, res))
+		std::cout << res << std::endl;
+	else
+		std::cout << "NaN" << std::endl;
 }
 
 bool math_calculate(std::vector<unknown_type>& v, double& r)
@@ -222,7 +224,7 @@ bool math_calculate(std::vector<unknown_type>& v, double& r)
 	}
 	if (expr_cntr != 0)
 		return false;
-	//std::vector<int> to_remove;
+	//std::vector<int> to_remove; // deleting elements is critically bad for indexation
 	int last_element = 0;
 	for (auto it = exprs.rbegin(); it != exprs.rend(); it++) // brackets iteration
 	{
