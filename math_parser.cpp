@@ -8,6 +8,7 @@
 #include <iostream>
 #include <cstring>
 #include <vector>
+#include <cmath>
 #include <conio.h>
 
 enum
@@ -102,7 +103,7 @@ public:
 	}
 };
 
-int math_prior(std::string&);
+bool math_prior(std::string&, double&);
 
 bool math_calculate(std::vector<unknown_type>&, double&);
 
@@ -111,16 +112,20 @@ int main()
 	std::string to_parse;
 	std::cout << "Enter expression: ";
 	std::cin >> to_parse;
-	math_prior(to_parse);
+	double result;
+	if(!math_prior(to_parse, result))
+		std::cout << "NaN" << std::endl;
+	else
+		std::cout << result << std::endl;
 	_getch();
 	return 0;
 }
 
-int math_prior(std::string& expr)
+bool math_prior(std::string& expr, double& res)
 {
-	double result;
 	int num = 0, exp = 0;
 	bool isFloating = false;
+	bool isEndBracket = false;;
 	int16_t exp_dgr = 0;
 	std::vector<unknown_type> v;
 	for (int i = 0; i < expr.size(); i++)
@@ -157,7 +162,7 @@ int math_prior(std::string& expr)
 		{
 			isFloating = true;
 		}
-		else if (s == '+' || s == '-' || s == '*' || s == '/' || s == 'x' || s == ':' || s == '%' || s == '^' || s == ')')
+		else if (s == ')')
 		{
 			if (!isFloating)
 			{
@@ -175,17 +180,42 @@ int math_prior(std::string& expr)
 			}
 			isFloating = false;
 			v.push_back(unknown_type(s));
+			isEndBracket = true;
 		}
 		else if (s == '(')
 		{
 			v.push_back(unknown_type(s));
 		}
+		else if (s == '+' || s == '-' || s == '*' || s == '/' || s == 'x' || s == ':' || s == '%' || s == '^')
+		{
+			if (!isEndBracket)
+			{
+				if (!isFloating)
+				{
+					v.push_back(unknown_type(double(num)));
+					num = 0;
+				}
+				else
+				{
+					double tp = double(num) + (double(exp) / std::pow(10, exp_dgr));
+					exp_dgr = 0;
+					v.push_back(unknown_type(tp));
+					num = 0;
+					exp = 0;
+					exp_dgr = 0;
+				}
+				isFloating = false;
+			}
+			else
+			{
+				isEndBracket = false;
+			}
+			v.push_back(unknown_type(s));
+		}
 	}
-	double res = 0.0;
-	if(math_calculate(v, res))
-		std::cout << res << std::endl;
-	else
-		std::cout << "NaN" << std::endl;
+	if(!math_calculate(v, res))
+		return false;
+	return true;
 }
 
 bool math_calculate(std::vector<unknown_type>& v, double& r)
