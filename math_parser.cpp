@@ -1,6 +1,6 @@
 /*
 * Math expression parser
-* Supports brackets, math operations: +, -, *, /, %, ^
+* Supports brackets, math operations: +, -, * or x, / or :, %, ^
 * Credit: SteveState
 * @steve_stage
 */
