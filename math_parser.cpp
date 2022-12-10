@@ -8,12 +8,13 @@
 #include <iostream>
 #include <cstring>
 #include <vector>
+#include <list>
 #include <cmath>
 #include <conio.h>
 
 enum
 {
-	DT_DOUBLE = 0, DT_CHAR, DT_BUFFER
+	DT_DOUBLE = 0, DT_CHAR
 };
 
 class unknown_type
@@ -40,12 +41,6 @@ public:
 		dt2 = i;
 		dataType = DT_CHAR;
 	}
-	void setBuffer()
-	{
-		dt1 = 0.0;
-		dt2 = 0;
-		dataType = DT_BUFFER;
-	}
 	double getDouble()
 	{
 		return dt1;
@@ -58,41 +53,25 @@ public:
 
 class brackets_container
 {
-	std::vector<int> pwrs, mltpls, addtns;
-	int pos_start, pos_end;
+	std::vector<std::list<unknown_type>::iterator> pwrs, mltpls, addtns;
 	bool isFnshd = false, isRpt = false;
 public:
-	brackets_container() : pos_start(0), pos_end(0), isFnshd(false), isRpt(false) {}
-	brackets_container(const int& i) : pos_start(i), pos_end(0), isFnshd(false), isRpt(false) {}
-	brackets_container(const int& i1, const int& i2) : pos_start(i1), pos_end(i2), isFnshd(true), isRpt(false) {}
-	const int& getPosStart()
-	{
-		return pos_start;
-	}
-	const int& getPosEnd()
-	{
-		return pos_end;
-	}
-	void setPosStart(const int& i)
-	{
-		pos_start = i;
-	}
-	void setPosEnd(const int& i)
-	{
-		pos_end = i;
-		isFnshd = true;
-	}
-	std::vector<int>& powers()
+	brackets_container() : isFnshd(false), isRpt(false) {}
+	std::vector<std::list<unknown_type>::iterator>& powers()
 	{
 		return pwrs;
 	}
-	std::vector<int>& multiplies()
+	std::vector<std::list<unknown_type>::iterator>& multiplies()
 	{
 		return mltpls;
 	}
-	std::vector<int>& additions()
+	std::vector<std::list<unknown_type>::iterator>& additions()
 	{
 		return addtns;
+	}
+	void setEnd()
+	{
+		isFnshd = true;
 	}
 	void setRepeat(const bool& i)
 	{
@@ -110,7 +89,7 @@ public:
 
 bool math_prior(std::string&, double&);
 
-bool math_calculate(std::vector<unknown_type>&, double&);
+bool math_calculate(std::list<unknown_type>&, double&);
 
 int main()
 {
@@ -132,7 +111,7 @@ bool math_prior(std::string& expr, double& res)
 	bool isFloating = false;
 	bool isEndBracket = false;;
 	int16_t exp_dgr = 0;
-	std::vector<unknown_type> v = { unknown_type('(')};
+	std::list<unknown_type> l; // we are removing much elements and don't want them to move, so list is our choice
 	for (int i = 0; i < expr.size(); i++)
 	{
 		char s = expr[i];
@@ -153,13 +132,13 @@ bool math_prior(std::string& expr, double& res)
 			{
 				if (!isFloating)
 				{
-					v.push_back(unknown_type(double(num)));
+					l.push_back(unknown_type(double(num)));
 				}
 				else
 				{
 					double tp = double(num) + (double(exp) / std::pow(10, exp_dgr));
 					exp_dgr = 0;
-					v.push_back(unknown_type(tp));
+					l.push_back(unknown_type(tp));
 				}
 			}
 		}
@@ -171,25 +150,25 @@ bool math_prior(std::string& expr, double& res)
 		{
 			if (!isFloating)
 			{
-				v.push_back(unknown_type(double(num)));
+				l.push_back(unknown_type(double(num)));
 				num = 0;
 			}
 			else
 			{
 				double tp = double(num) + (double(exp) / std::pow(10, exp_dgr));
 				exp_dgr = 0;
-				v.push_back(unknown_type(tp));
+				l.push_back(unknown_type(tp));
 				num = 0;
 				exp = 0;
 				exp_dgr = 0;
 			}
 			isFloating = false;
-			v.push_back(unknown_type(s));
+			l.push_back(unknown_type(s));
 			isEndBracket = true;
 		}
 		else if (s == '(')
 		{
-			v.push_back(unknown_type(s));
+			l.push_back(unknown_type(s));
 		}
 		else if (s == '+' || s == '-' || s == '*' || s == '/' || s == 'x' || s == ':' || s == '%' || s == '^')
 		{
@@ -197,14 +176,14 @@ bool math_prior(std::string& expr, double& res)
 			{
 				if (!isFloating)
 				{
-					v.push_back(unknown_type(double(num)));
+					l.push_back(unknown_type(double(num)));
 					num = 0;
 				}
 				else
 				{
 					double tp = double(num) + (double(exp) / std::pow(10, exp_dgr));
 					exp_dgr = 0;
-					v.push_back(unknown_type(tp));
+					l.push_back(unknown_type(tp));
 					num = 0;
 					exp = 0;
 					exp_dgr = 0;
@@ -215,26 +194,24 @@ bool math_prior(std::string& expr, double& res)
 			{
 				isEndBracket = false;
 			}
-			v.push_back(unknown_type(s));
+			l.push_back(unknown_type(s));
 		}
 	}
-	v.push_back(unknown_type(')'));
-	if (!math_calculate(v, res))
+	if (!math_calculate(l, res))
 		return false;
 	return true;
 }
 
-// x + (x - x) - (x * x)
-// x / (x + (x - x) - (x * x) - (x % x) - x) + x
-
-bool math_calculate(std::vector<unknown_type>& v, double& r)
+bool math_calculate(std::list<unknown_type>& l, double& r)
 {
-	std::vector<brackets_container> exprs = { brackets_container(0, v.size()-1) }; // first - powers, second - multiplies
+	std::vector<brackets_container> exprs = { brackets_container() };
 	int expr_cntr = 0, br_cntr = 0, expr_offset = 0;
 	bool frmr_end_bracket = 0;
-	for (int i = 1; i < v.size()-1; i++)
+	auto p = l.begin();
+	for (int i = 0; i < l.size(); i++)
 	{
-		unknown_type& u = v[i];
+		p = std::next(p);
+		auto& u = *p;
 		if (u.getType() == DT_CHAR)
 		{
 			if (u.getChar() == '(')
@@ -243,128 +220,107 @@ bool math_calculate(std::vector<unknown_type>& v, double& r)
 				if ((*exprs.rbegin()).isFinished())
 				{
 					expr_cntr += 1 + expr_offset;
-					exprs.push_back(brackets_container(i));
+					exprs.push_back(brackets_container());
 					exprs[expr_cntr].setRepeat(true);
 				}
 				else
 				{
 					expr_cntr++;
-					exprs.push_back(brackets_container(i));
+					exprs.push_back(brackets_container());
 				}
+				p = l.erase(p);
+				p--;
+				i--;
 			}
 			else if (u.getChar() == ')')
 			{
 				if (frmr_end_bracket)
 				{
-					exprs[expr_cntr].setPosEnd(i);
+					exprs[expr_cntr].setEnd();
 					expr_cntr--;
 				}
 				else
 				{
-					exprs[expr_cntr].setPosEnd(i);
+					exprs[expr_cntr].setEnd();
 					expr_cntr -= 1 + expr_offset;
 					frmr_end_bracket = true;
 				}
 				expr_offset++;
+				p = l.erase(p);
+				p--;
+				i--;
 			}
 			else if (u.getChar() == '^')
 			{
-				exprs[expr_cntr].powers().push_back(i);
+				exprs[expr_cntr].powers().push_back(p);
 			}
 			else if (u.getChar() == '*' || u.getChar() == 'x' || u.getChar() == '/' || u.getChar() == ':'\
 				|| u.getChar() == '%')
 			{
-				exprs[expr_cntr].multiplies().push_back(i);
+				exprs[expr_cntr].multiplies().push_back(p);
 			}
 			else if (u.getChar() == '+' || u.getChar() == '-')
 			{
-				exprs[expr_cntr].additions().push_back(i);
+				exprs[expr_cntr].additions().push_back(p);
 			}
 		}
 	}
 	if (expr_cntr != 0)
 		return false;
-	//std::vector<int> to_remove; // deleting elements is critically bad for indexation
-	int last_element = 0;
+	std::list<unknown_type>::iterator last_e;
 	for (auto it = exprs.rbegin(); it != exprs.rend(); it++) // brackets iteration
 	{
 		auto& e = *it;
-		auto& vl = v[e.getPosStart()];
 		for (auto itp = e.powers().rbegin(); itp != e.powers().rend(); itp++)
 		{
-			last_element = (*itp);
-			int prev_idx = last_element - 1;
-			int next_idx = last_element + 1;
-			unknown_type *p1 = &v[prev_idx], *p2 = &v[next_idx];
-			while ((*p1).getType() != DT_DOUBLE)
-			{
-				prev_idx--;
-				p1 = &v[prev_idx];
-			}
-			while ((*p2).getType() != DT_DOUBLE)
-			{
-				next_idx++;
-				p2 = &v[next_idx];
-			}
-			auto &pl1 = *p1, &pl2 = *p2;
-			double pwr = std::pow(pl1.getDouble(), pl2.getDouble());
-			std::cout << pl1.getDouble() << ' ' << v[last_element].getChar() << ' ' << pl2.getDouble() << " = " << pwr << std::endl;
-			v[last_element].setDouble(pwr);
-			pl1.setBuffer();
-			pl2.setBuffer();
+			last_e = (*itp);
+			auto prev_e = std::prev(last_e);
+			auto next_e = std::next(last_e);
+			double pwr = std::pow((*prev_e).getDouble(), (*next_e).getDouble());
+			(*last_e).setDouble(pwr);
+			l.erase(prev_e);
+			l.erase(next_e);
 		}
 		for (auto itm = e.multiplies().begin(); itm != e.multiplies().end(); itm++)
 		{
-			last_element = (*itm);
-			int prev_idx = last_element - 1;
-			int next_idx = last_element + 1;
-			unknown_type* p1 = &v[prev_idx], * p2 = &v[next_idx];
-			while ((*p1).getType() != DT_DOUBLE)
-			{
-				prev_idx--;
-				p1 = &v[prev_idx];
-			}
-			while ((*p2).getType() != DT_DOUBLE)
-			{
-				next_idx++;
-				p2 = &v[next_idx];
-			}
-			auto  &pl1 = *p1, &pl2 = *p2;
+			last_e = (*itm);
+			auto prev_e = std::prev(last_e);
+			auto next_e = std::next(last_e);
 			double mpl = 0.0;
-			switch (v[last_element].getChar())
+			switch ((*last_e).getChar())
 			{
 				case '*':
 				{
-					mpl = pl1.getDouble() * pl2.getDouble();
+					mpl = (*prev_e).getDouble() * (*next_e).getDouble();
 					break;
 				}
 				case 'x':
 				{
-					mpl = pl1.getDouble() * pl2.getDouble();
+					mpl = (*prev_e).getDouble() * (*next_e).getDouble();
 					break;
 				}
 				case '/':
 				{
-					if (std::nearbyint(pl2.getDouble()) == 0.0)
+					if ((*next_e).getDouble() == 0.0)
 						return false;
 					else
-						mpl = pl1.getDouble() / pl2.getDouble();
+						mpl = (*prev_e).getDouble() / (*next_e).getDouble();
 					break;
 				}
 				case ':':
 				{
-					if (std::nearbyint(pl2.getDouble()) == 0.0)
+					if ((*next_e).getDouble() == 0.0)
 						return false;
 					else
-						mpl = pl1.getDouble() / pl2.getDouble();
+						mpl = (*prev_e).getDouble() / (*next_e).getDouble();
 					break;
 				}
 				case '%':
 				{
-					if (std::nearbyint(pl2.getDouble()) == 0.0)
+					if ((*next_e).getDouble() == 0.0)
 						return false;
 					else
-						mpl = std::fmod(pl1.getDouble(), pl2.getDouble());
+						mpl = std::fmod((*prev_e).getDouble(), (*next_e).getDouble());
 					break;
 				}
 				default:
@@ -372,39 +328,26 @@ bool math_calculate(std::vector<unknown_type>& v, double& r)
 					break;
 				}
 			}
-			std::cout << pl1.getDouble() << ' ' << v[last_element].getChar() << ' ' << pl2.getDouble() << " = " << mpl << std::endl;
-			v[last_element].setDouble(mpl);
-			pl1.setBuffer();
-			pl2.setBuffer();
+			(*last_e).setDouble(mpl);
+			l.erase(prev_e);
+			l.erase(next_e);
 		}
 		for (auto ita = e.additions().begin(); ita != e.additions().end(); ita++)
 		{
-			last_element = (*ita);
-			int prev_idx = last_element - 1;
-			int next_idx = last_element + 1;
-			unknown_type *p1 = &v[prev_idx], *p2 = &v[next_idx];
-			while ((*p1).getType() != DT_DOUBLE)
-			{
-				prev_idx--;
-				p1 = &v[prev_idx];
-			}
-			while ((*p2).getType() != DT_DOUBLE)
-			{
-				next_idx++;
-				p2 = &v[next_idx];
-			}
-			auto &pl1 = *p1, &pl2 = *p2;
+			last_e = (*ita);
+			auto prev_e = std::prev(last_e);
+			auto next_e = std::next(last_e);
 			double add = 0.0;
-			switch (v[last_element].getChar())
+			switch ((*last_e).getChar())
 			{
 				case '+':
 				{
-					add = pl1.getDouble() + pl2.getDouble();
+					add = (*prev_e).getDouble() + (*next_e).getDouble();
 					break;
 				}
 				case '-':
 				{
-					add = pl1.getDouble() - pl2.getDouble();
+					add = (*prev_e).getDouble() - (*next_e).getDouble();
 					break;
 				}
 				default:
@@ -412,14 +355,11 @@ bool math_calculate(std::vector<unknown_type>& v, double& r)
 					break;
 				}
 			}
-			std::cout << pl1.getDouble() << ' ' << v[last_element].getChar() << ' ' << pl2.getDouble() << " = " << add << std::endl;
-			v[last_element].setDouble(add);
-			pl1.setBuffer();
-			pl2.setBuffer();
+			(*last_e).setDouble(add);
+			l.erase(prev_e);
+			l.erase(next_e);
 		}
-		v[e.getPosStart()].setBuffer();
-		v[e.getPosEnd()].setBuffer();
 	}
-	r = v[last_element].getDouble();
+	r = (*last_e).getDouble();
 	return true;
 }
