@@ -109,7 +109,8 @@ bool math_prior(std::string& expr, double& res)
 {
 	int num = 0, exp = 0;
 	bool isFloating = false;
-	bool isEndBracket = false;;
+	bool isEndBracket = false;
+	bool isFrmrOperation = true;
 	int16_t exp_dgr = 0;
 	std::list<unknown_type> l; // we are removing much elements and don't want them to move, so list is our choice
 	for (int i = 0; i < expr.size(); i++)
@@ -117,6 +118,13 @@ bool math_prior(std::string& expr, double& res)
 		char s = expr[i];
 		if (s >= '0' && s <= '9')
 		{
+			if (!isFrmrOperation && isEndBracket && !isFloating)
+			{
+				l.push_back(unknown_type('*'));
+			}
+			else
+				isFrmrOperation = false;
+			isEndBracket = false;
 			if (!isFloating)
 			{
 				num *= 10;
@@ -144,34 +152,67 @@ bool math_prior(std::string& expr, double& res)
 		}
 		else if (s == '.')
 		{
+			isFrmrOperation = false;
 			isFloating = true;
 		}
 		else if (s == ')')
 		{
-			if (!isFloating)
+			if (!isFrmrOperation)
 			{
-				l.push_back(unknown_type(double(num)));
-				num = 0;
+				if (!isEndBracket)
+				{
+					if (!isFloating)
+					{
+						l.push_back(unknown_type(double(num)));
+						num = 0;
+					}
+					else
+					{
+						double tp = double(num) + (double(exp) / std::pow(10, exp_dgr));
+						exp_dgr = 0;
+						l.push_back(unknown_type(tp));
+						num = 0;
+						exp = 0;
+						exp_dgr = 0;
+					}
+					isFloating = false;
+				}
 			}
-			else
-			{
-				double tp = double(num) + (double(exp) / std::pow(10, exp_dgr));
-				exp_dgr = 0;
-				l.push_back(unknown_type(tp));
-				num = 0;
-				exp = 0;
-				exp_dgr = 0;
-			}
-			isFloating = false;
+			isFrmrOperation = false;
 			l.push_back(unknown_type(s));
 			isEndBracket = true;
 		}
 		else if (s == '(')
 		{
+			if (!isFrmrOperation)
+			{
+				if (!isEndBracket)
+				{
+					if (!isFloating)
+					{
+						l.push_back(unknown_type(double(num)));
+						num = 0;
+					}
+					else
+					{
+						double tp = double(num) + (double(exp) / std::pow(10, exp_dgr));
+						exp_dgr = 0;
+						l.push_back(unknown_type(tp));
+						num = 0;
+						exp = 0;
+						exp_dgr = 0;
+					}
+					isFloating = false;
+				}
+				l.push_back(unknown_type('*'));
+				isFrmrOperation = true;
+			}
 			l.push_back(unknown_type(s));
+			isEndBracket = false;
 		}
 		else if (s == '+' || s == '-' || s == '*' || s == '/' || s == 'x' || s == ':' || s == '%' || s == '^')
 		{
+			isFrmrOperation = true;
 			if (!isEndBracket)
 			{
 				if (!isFloating)
@@ -207,10 +248,9 @@ bool math_calculate(std::list<unknown_type>& l, double& r)
 	std::vector<brackets_container> exprs = { brackets_container() };
 	int expr_cntr = 0, br_cntr = 0, expr_offset = 0;
 	bool frmr_end_bracket = 0;
-	auto p = l.begin();
 	for (int i = 0; i < l.size(); i++)
 	{
-		p = std::next(p);
+		auto p = std::next(l.begin(), i);
 		auto& u = *p;
 		if (u.getType() == DT_CHAR)
 		{
@@ -268,6 +308,7 @@ bool math_calculate(std::list<unknown_type>& l, double& r)
 	if (expr_cntr != 0)
 		return false;
 	std::list<unknown_type>::iterator last_e;
+	volatile int y = 5;
 	for (auto it = exprs.rbegin(); it != exprs.rend(); it++) // brackets iteration
 	{
 		auto& e = *it;
@@ -359,6 +400,7 @@ bool math_calculate(std::list<unknown_type>& l, double& r)
 			l.erase(prev_e);
 			l.erase(next_e);
 		}
+		volatile int i = 5;
 	}
 	r = (*last_e).getDouble();
 	return true;
