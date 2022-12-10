@@ -378,8 +378,8 @@ bool math_calculate(std::vector<unknown_type>& v, double& r)
 			pl1.setBuffer(&v[last_element]);
 			pl2.setBuffer(&v[last_element]);
 		}
-		v[e.getPosStart()].setDouble(v[last_element].getDouble());
-		v[e.getPosEnd()].setDouble(v[last_element].getDouble());
+		v[e.getPosStart()].setBuffer(v[last_element].getBuffer());
+		v[e.getPosEnd()].setBuffer(v[last_element].getBuffer());
 	}
 	r = v[last_element].getDouble();
 	return true;
