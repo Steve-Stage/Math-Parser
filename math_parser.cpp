@@ -7,6 +7,7 @@
 
 #include <iostream>
 #include <cstring>
+#include <string>
 #include <vector>
 #include <list>
 #include <cmath>
@@ -95,7 +96,7 @@ int main()
 {
 	std::string to_parse;
 	std::cout << "Enter expression: ";
-	std::cin >> to_parse;
+	std::getline(std::cin, to_parse);
 	double result;
 	if (!math_prior(to_parse, result))
 		std::cout << "NaN" << std::endl;
