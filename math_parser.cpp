@@ -253,6 +253,10 @@ bool math_prior(const std::string& expr, double& res)
 					continue;
 				}
 			}
+			else if (before == '(')
+			{
+				l.push_back(unknown_type(0.0));
+			}
 			else if (before != ')')
 			{
 				isPositive = false;
