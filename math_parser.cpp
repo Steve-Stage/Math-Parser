@@ -42,11 +42,11 @@ public:
 		dt2 = i;
 		dataType = DT_CHAR;
 	}
-	double getDouble()
+	const double& getDouble()
 	{
 		return dt1;
 	}
-	char getChar()
+	const char& getChar()
 	{
 		return dt2;
 	}
@@ -88,7 +88,7 @@ public:
 	}
 };
 
-bool math_prior(std::string&, double&);
+bool math_prior(const std::string&, double&);
 
 bool math_calculate(std::list<unknown_type>&, double&);
 
@@ -106,26 +106,51 @@ int main()
 	return 0;
 }
 
-bool math_prior(std::string& expr, double& res)
+bool math_prior(const std::string& expr, double& res)
 {
 	int num = 0, exp = 0;
 	bool isFloating = false;
-	bool isEndBracket = false;
-	bool isFrmrOperation = true;
+	bool isPositive = true;
 	int16_t exp_dgr = 0;
 	std::list<unknown_type> l; // we are removing much elements and don't want them to move, so list is our choice
+	char before = expr[0];
+	auto write_num = [](int& n, int& e, int16_t& e_d, bool& isfloat, bool& ispositive, std::list<unknown_type>& lt) -> void
+	{
+		if (!isfloat)
+		{
+			if (!ispositive)
+			{
+				n = -n;
+				ispositive = true;
+			}
+			lt.push_back(unknown_type(double(n)));
+			n = 0;
+		}
+		else
+		{
+			double tp = double(n) + (double(e) / std::pow(10, e_d));
+			if (!ispositive)
+			{
+				tp = -tp;
+				ispositive = true;
+			}
+			e_d = 0;
+			lt.push_back(unknown_type(tp));
+			n = 0;
+			e = 0;
+			e_d = 0;
+		}
+		isfloat = false;
+	};
 	for (int i = 0; i < expr.size(); i++)
 	{
 		char s = expr[i];
 		if (s >= '0' && s <= '9')
 		{
-			if (!isFrmrOperation && isEndBracket && !isFloating)
+			if (before == ')' && !isFloating)
 			{
 				l.push_back(unknown_type('*'));
 			}
-			else
-				isFrmrOperation = false;
-			isEndBracket = false;
 			if (!isFloating)
 			{
 				num *= 10;
@@ -146,102 +171,92 @@ bool math_prior(std::string& expr, double& res)
 				else
 				{
 					double tp = double(num) + (double(exp) / std::pow(10, exp_dgr));
-					exp_dgr = 0;
 					l.push_back(unknown_type(tp));
 				}
 			}
 		}
 		else if (s == '.')
 		{
-			isFrmrOperation = false;
-			isFloating = true;
+			if (isFloating)
+				return false;
+			else
+			{
+				if (before == ')')
+				{
+					l.push_back(unknown_type('*'));
+				}
+				isFloating = true;
+			}
 		}
 		else if (s == ')')
 		{
-			if (!isFrmrOperation)
+			if (before == '+' || before == '-')
 			{
-				if (!isEndBracket)
-				{
-					if (!isFloating)
-					{
-						l.push_back(unknown_type(double(num)));
-						num = 0;
-					}
-					else
-					{
-						double tp = double(num) + (double(exp) / std::pow(10, exp_dgr));
-						exp_dgr = 0;
-						l.push_back(unknown_type(tp));
-						num = 0;
-						exp = 0;
-						exp_dgr = 0;
-					}
-					isFloating = false;
-				}
+				l.erase(std::next(l.begin(), l.size()-1));
 			}
-			isFrmrOperation = false;
-			l.push_back(unknown_type(s));
-			isEndBracket = true;
-		}
-		else if (s == '(')
-		{
-			if (!isFrmrOperation)
+			else if (before == '*' || before == '/' || before == 'x' || before == ':' || before == '%' || before == '^')
 			{
-				if (!isEndBracket)
-				{
-					if (!isFloating)
-					{
-						l.push_back(unknown_type(double(num)));
-						num = 0;
-					}
-					else
-					{
-						double tp = double(num) + (double(exp) / std::pow(10, exp_dgr));
-						exp_dgr = 0;
-						l.push_back(unknown_type(tp));
-						num = 0;
-						exp = 0;
-						exp_dgr = 0;
-					}
-					isFloating = false;
-				}
-				l.push_back(unknown_type('*'));
-				isFrmrOperation = true;
-			}
-			l.push_back(unknown_type(s));
-			isEndBracket = false;
-		}
-		else if (s == '+' || s == '-' || s == '*' || s == '/' || s == 'x' || s == ':' || s == '%' || s == '^')
-		{
-			isFrmrOperation = true;
-			if (!isEndBracket)
-			{
-				if (!isFloating)
-				{
-					l.push_back(unknown_type(double(num)));
-					num = 0;
-				}
-				else
-				{
-					double tp = double(num) + (double(exp) / std::pow(10, exp_dgr));
-					exp_dgr = 0;
-					l.push_back(unknown_type(tp));
-					num = 0;
-					exp = 0;
-					exp_dgr = 0;
-				}
-				isFloating = false;
+				return false;
 			}
 			else
 			{
-				isEndBracket = false;
+				write_num(num, exp, exp_dgr, isFloating, isPositive, l);
 			}
 			l.push_back(unknown_type(s));
 		}
+		else if (s == '(')
+		{
+			if ((before >= '0' && before <= '9') || before == '.')
+			{
+				write_num(num, exp, exp_dgr, isFloating, isPositive, l);
+				l.push_back(unknown_type('*'));
+			}
+			else if (before == ')')
+				l.push_back(unknown_type('*'));
+			l.push_back(unknown_type(s));
+		}
+		else if (s == '+')
+		{
+			if ((before >= '0' && before <= '9') || before == '.')
+			{
+				write_num(num, exp, exp_dgr, isFloating, isPositive, l);
+			}
+			else if (before != ')')
+				continue;
+			l.push_back(unknown_type(s));
+		}
+		else if (s == '-')
+		{
+			if ((before >= '0' && before <= '9') || before == '.')
+			{
+				write_num(num, exp, exp_dgr, isFloating, isPositive, l);
+			}
+			else if (before == '(')
+			{
+				l.push_back(unknown_type(0.0));
+			}
+			else if (before != ')' && i != 0)
+			{
+				isPositive = false;
+				continue;
+			}
+			l.push_back(unknown_type(s));
+		}
+		else if (s == '*' || s == '/' || s == 'x' || s == ':' || s == '%' || s == '^')
+		{
+			if ((before >= '0' && before <= '9') || before == '.')
+			{
+				write_num(num, exp, exp_dgr, isFloating, isPositive, l);
+			}
+			else if (before != ')')
+				return false;
+			l.push_back(unknown_type(s));
+		}
+		else if (s != ' ')
+			return false;
+		before = s;
 	}
-	if (!math_calculate(l, res))
-		return false;
-	return true;
+	return math_calculate(l, res);
 }
 
 bool math_calculate(std::list<unknown_type>& l, double& r)
@@ -255,6 +270,7 @@ bool math_calculate(std::list<unknown_type>& l, double& r)
 		auto& u = *p;
 		if (u.getType() == DT_CHAR)
 		{
+			auto& uc = u.getChar();
 			if (u.getChar() == '(')
 			{
 				frmr_end_bracket = false;
@@ -270,7 +286,6 @@ bool math_calculate(std::list<unknown_type>& l, double& r)
 					exprs.push_back(brackets_container());
 				}
 				p = l.erase(p);
-				p--;
 				i--;
 			}
 			else if (u.getChar() == ')')
@@ -288,7 +303,6 @@ bool math_calculate(std::list<unknown_type>& l, double& r)
 				}
 				expr_offset++;
 				p = l.erase(p);
-				p--;
 				i--;
 			}
 			else if (u.getChar() == '^')
@@ -309,7 +323,6 @@ bool math_calculate(std::list<unknown_type>& l, double& r)
 	if (expr_cntr != 0)
 		return false;
 	std::list<unknown_type>::iterator last_e;
-	volatile int y = 5;
 	for (auto it = exprs.rbegin(); it != exprs.rend(); it++) // brackets iteration
 	{
 		auto& e = *it;
@@ -401,7 +414,6 @@ bool math_calculate(std::list<unknown_type>& l, double& r)
 			l.erase(prev_e);
 			l.erase(next_e);
 		}
-		volatile int i = 5;
 	}
 	r = (*last_e).getDouble();
 	return true;
