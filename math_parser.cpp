@@ -134,13 +134,32 @@ bool math_prior(const std::string& expr, double& res)
 				tp = -tp;
 				ispositive = true;
 			}
-			e_d = 0;
 			lt.push_back(unknown_type(tp));
 			n = 0;
 			e = 0;
 			e_d = 0;
 		}
 		isfloat = false;
+	};
+	auto write_num_end = [](int& n, int& e, int16_t& e_d, bool& isfloat, bool& ispositive, std::list<unknown_type>& lt) -> void
+	{
+		if (!isfloat)
+		{
+			if (!ispositive)
+			{
+				n = -n;
+			}
+			lt.push_back(unknown_type(double(n)));
+		}
+		else
+		{
+			double tp = double(n) + (double(e) / std::pow(10, e_d));
+			if (!ispositive)
+			{
+				tp = -tp;
+			}
+			lt.push_back(unknown_type(tp));
+		}
 	};
 	for (int i = 0; i < expr.size(); i++)
 	{
@@ -164,15 +183,7 @@ bool math_prior(const std::string& expr, double& res)
 			}
 			if (i == (expr.size() - 1))
 			{
-				if (!isFloating)
-				{
-					l.push_back(unknown_type(double(num)));
-				}
-				else
-				{
-					double tp = double(num) + (double(exp) / std::pow(10, exp_dgr));
-					l.push_back(unknown_type(tp));
-				}
+				write_num_end(num, exp, exp_dgr, isFloating, isPositive, l);
 			}
 		}
 		else if (s == '.')
@@ -223,7 +234,8 @@ bool math_prior(const std::string& expr, double& res)
 			}
 			else if (before != ')')
 				continue;
-			l.push_back(unknown_type(s));
+			if (i != (expr.size() - 1))
+				l.push_back(unknown_type(s));
 		}
 		else if (s == '-')
 		{
@@ -232,13 +244,22 @@ bool math_prior(const std::string& expr, double& res)
 				write_num(num, exp, exp_dgr, isFloating, isPositive, l);
 			}
 			else if (before == '-' && i != 0)
-				return false;
-			else if ((before != ')' && i != 0) || i == 0)
+			{
+				if (!isPositive)
+					return false;
+				else
+				{
+					isPositive = false;
+					continue;
+				}
+			}
+			else if (before != ')')
 			{
 				isPositive = false;
 				continue;
 			}
-			l.push_back(unknown_type(s));
+			if(i != (expr.size()-1))
+				l.push_back(unknown_type(s));
 		}
 		else if (s == '*' || s == '/' || s == 'x' || s == ':' || s == '%' || s == '^')
 		{
@@ -246,7 +267,7 @@ bool math_prior(const std::string& expr, double& res)
 			{
 				write_num(num, exp, exp_dgr, isFloating, isPositive, l);
 			}
-			else if (before != ')')
+			else if (before != ')' || i == (expr.size()-1))
 				return false;
 			l.push_back(unknown_type(s));
 		}
