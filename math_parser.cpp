@@ -231,10 +231,6 @@ bool math_prior(const std::string& expr, double& res)
 			{
 				write_num(num, exp, exp_dgr, isFloating, isPositive, l);
 			}
-			else if (before == '(')
-			{
-				l.push_back(unknown_type(0.0));
-			}
 			else if (before != ')' && i != 0)
 			{
 				isPositive = false;
