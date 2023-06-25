@@ -112,7 +112,7 @@ bool math_prior(const std::string& expr, double& res)
 	bool isFloating = false;
 	bool isPositive = true;
 	int16_t exp_dgr = 0;
-	std::list<unknown_type> l; // we are removing much elements and don't want them to move, so list is our choice
+	std::list<unknown_type> l; // we are removing many elements and don't want them to move, so list is our choice
 	char before = expr[0];
 	auto write_num = [](int& n, int& e, int16_t& e_d, bool& isfloat, bool& ispositive, std::list<unknown_type>& lt) -> void
 	{
